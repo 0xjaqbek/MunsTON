@@ -6,12 +6,21 @@ import stone2 from './stone2.png';
 import stone3 from './stone3.png';
 import stone4 from './stone4.png';
 
-const moveAnimation = keyframes`
+const moveAndRotateAnimation = keyframes`
   0% {
-    transform: translate(var(--startX), var(--startY));
+    transform: translate(var(--startX), var(--startY)) rotate(0deg);
   }
   100% {
-    transform: translate(var(--endX), var(--endY));
+    transform: translate(var(--endX), var(--endY)) rotate(360deg);
+  }
+`;
+
+const rotateAnimation = keyframes`
+  from {
+    transform: translate(var(--startX), var(--startY)) rotate(0deg);
+  }
+  to {
+    transform: translate(var(--endX), var(--endY)) rotate(360deg);
   }
 `;
 
@@ -54,7 +63,7 @@ const Stone = styled.img<{ speed: number; startX: number; startY: number; endX: 
   position: absolute;
   width: 50px;
   height: 50px;
-  animation: ${moveAnimation} ${props => props.speed}s linear;
+  animation: ${moveAndRotateAnimation} ${props => props.speed}s linear;
   animation-fill-mode: forwards;
   --startX: ${props => props.startX}px;
   --startY: ${props => props.startY}px;
@@ -85,14 +94,15 @@ const GameOverScreen = styled.div`
 `;
 
 interface Stone {
-    id: number;
-    type: number;
-    speed: number;
-    startX: number;
-    startY: number;
-    endX: number;
-    endY: number;
-  }
+  id: number;
+  type: number;
+  speed: number;
+  rotationSpeed?: number;
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
   
   const Content = () => {
     const [isPlaying, setIsPlaying] = useState(false);
@@ -101,6 +111,10 @@ interface Stone {
     const [stones, setStones] = useState<Stone[]>([]);
     const [difficulty, setDifficulty] = useState(1);
     const [stoneIdCounter, setStoneIdCounter] = useState(0);
+
+    const removeStone = useCallback((id: number) => {
+      setStones(prev => prev.filter(stone => stone.id !== id));
+    }, []);
   
     const handleStartClick = () => {
       setIsPlaying(true);
@@ -151,19 +165,19 @@ interface Stone {
         }
       
         const newStone: Stone = {
-            id: stoneIdCounter,
-            type: Math.random() < 0.1 ? 3 : Math.floor(Math.random() * 3),
-            speed: 5 - difficulty * 0.5,
-            startX,
-            startY,
-            endX,
-            endY,
-          };
+          id: stoneIdCounter,
+          type: Math.random() < 0.1 ? 3 : Math.floor(Math.random() * 3),
+          speed: 5 - difficulty * 0.5,
+          rotationSpeed: Math.random() * 2 + 1, // Add this line to vary rotation speed
+          startX,
+          startY,
+          endX,
+          endY,
+        };
       
-          setStoneIdCounter(prev => prev + 1);
-          
-          return newStone;
-        }, [difficulty, stoneIdCounter]);
+        setStoneIdCounter(prev => prev + 1);
+        return newStone;
+      }, [difficulty, stoneIdCounter]);
   
     const handleStoneTap = useCallback((id: number, type: number) => {
       if (type === 3) { // Bomb (stone4)
@@ -173,29 +187,6 @@ interface Stone {
         removeStone(id);
       }
     }, [removeStone]);
-  
-    useEffect(() => {
-      if (isPlaying && !gameOver) {
-        const spawnInterval = setInterval(() => {
-          if (stones.length < 10) {
-            spawnStone();
-          }
-        }, 1000 / (difficulty * 2)); // Spawn faster as difficulty increases
-  
-        const difficultyInterval = setInterval(() => {
-          setDifficulty(prev => {
-            if (prev < 1.5) return 1.5; // Easy to Medium
-            if (prev < 2.5) return 2.5; // Medium to Hard
-            return 3; // Hard (max difficulty)
-          });
-        }, 20000); // Change difficulty every 20 seconds
-  
-        return () => {
-          clearInterval(spawnInterval);
-          clearInterval(difficultyInterval);
-        };
-      }
-    }, [isPlaying, gameOver, difficulty, spawnStone, stones.length]);
   
     useEffect(() => {
         if (isPlaying && !gameOver) {
@@ -240,7 +231,7 @@ interface Stone {
         )}
 {isPlaying && !gameOver && stones.map(stone => (
   <Stone
-    key={`stone-${stone.id}-${Math.random()}`} // Ensure the key is always unique
+    key={`stone-${stone.id}-${Math.random()}`}
     id={`stone-${stone.id}`}
     src={[stone1, stone2, stone3, stone4][stone.type]}
     alt={`Stone ${stone.type + 1}`}
@@ -252,7 +243,6 @@ interface Stone {
     onClick={() => handleStoneTap(stone.id, stone.type)}
   />
 ))}
-
         {gameOver && (
           <GameOverScreen>
             <h2>Game Over</h2>
